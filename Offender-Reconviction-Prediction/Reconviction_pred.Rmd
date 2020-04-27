@@ -1,0 +1,327 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+library(caret)
+library(keras)
+library(dplyr)
+library(rpart)
+library(plyr)
+library(dummies)
+library(rattle)
+library(rpart.plot)
+library(randomForest)
+```
+
+```{r}
+data <- read.csv('reconv.csv')
+summary(data)
+```
+
+```{r}
+#Exploratory Data Analysis
+data<-select(data,-c(X,OINUM))
+
+ggplot(data = data) +
+  geom_boxplot(mapping = aes(x = RECONV, y = NUMCONV, fill = RECONV)) +
+  xlab("Reconviction") +
+  ylab("Number of Convictions previously") +
+  scale_fill_discrete(name = "Reconvicted")
+
+
+ggplot(data = data) +
+  geom_boxplot(mapping = aes(x = RECONV, y = YOUTHCUS, fill = RECONV)) +
+  xlab("Reconviction") +
+  ylab("Number of previous youth custody sentences") + 
+  scale_fill_discrete(name = "Reconvicted")
+
+
+ggplot(data = data) +
+  geom_boxplot(mapping = aes(x = RECONV, y = LENPRECC, fill = RECONV)) +
+  xlab("Reconviction") +
+  ylab("Time (years) from start of convictions to target conviction") +
+  scale_fill_discrete(name = "Reconvicted")
+
+
+ggplot(data = data) +
+  geom_bar(mapping = aes(x = TARGOFF, fill = RECONV)) +
+  xlab("Principal offence at target conviction") +
+  coord_flip() +
+  scale_fill_discrete(name = "Reconvicted")
+
+
+ggplot(data = data) +
+  geom_bar(mapping = aes(x = CUST, fill = RECONV)) +
+  xlab("Whether or not there was a custodial sentence at target conviction") +
+  scale_fill_discrete(name = "Reconvicted")
+```
+```{r}
+summary(data$RECONV)
+summary(data$RECONV)[2]/summary(data$RECONV)[1]
+```
+
+```{r}
+#Pre-Processing
+data
+train_idx <- createDataPartition(data$RECONV,
+                                 p = 0.7, list = FALSE, times = 1)
+test_df <- data[-train_idx,]
+train_df <- data[train_idx,]
+generic_data<-data
+Y<-select(data,RECONV)
+#Y<-as.vector(Y['RECONV'])
+names(Y) <- NULL
+test_y <- Y[-train_idx,]
+train_y <- Y[train_idx,]
+
+train_y<- unlist(train_y)
+test_y<- unlist(test_y)
+
+generic_Y<-Y
+#Y<- to_categorical(Y,2)
+
+train_y<- mapvalues(train_y, c("Yes", "No"),  c("1", "0"))
+test_y<- mapvalues(test_y, c("Yes", "No"),  c("1", "0"))
+test_validation_y<-test_y
+train_y<-to_categorical(train_y)
+
+test_y<-to_categorical(test_y)
+
+
+#Y
+X<- select(data,-RECONV) 
+generic_X<-X
+X <- cbind(X, dummy(X$SEX,sep='_'),  dummy(X$TARGAGE,sep='_'), dummy(X$CUST,sep='_'), dummy(X$TARGOFF,sep='_'))
+X$VIOL<- dummy(X$VIOL,sep='_')
+X$SEXOFF<- dummy(X$SEXOFF,sep='_')
+X$BURGLARY <-dummy(X$BURGLARY,sep='_') 
+X$ROBBERY <-dummy(X$ROBBERY,sep='_')
+X$THEFT <-dummy(X$THEFT,sep='_') 
+X$FR_FORG <-dummy(X$FR_FORG,sep='_') 
+X$CRIMDAM <-dummy(X$CRIMDAM,sep='_') 
+X$DRUGS <-dummy(X$DRUGS,sep='_') 
+X$OTHER <-dummy(X$OTHER,sep='_') 
+X$MOTORING <-dummy(X$MOTORING,sep='_') 
+X$DK_NONSL <-dummy(X$DK_NONSL,sep='_')
+#X<- onehot(X,stringsAsFactors=TRUE)
+X <- select(X,-c(SEX,TARGAGE,CUST,TARGOFF))
+X <- X %>% scale()
+test_x <- X[-train_idx,]
+train_x <- X[train_idx,]
+```
+
+```{r}
+nn_model <- keras_model_sequential()
+#nn_model1<-nn_model
+
+nn_model %>%   
+  
+  layer_dropout(rate = 0.2) %>% 
+      layer_dense(units = 2, 
+                         activation = 'softmax',
+                           kernel_initializer =initializer_random_uniform(
+                           minval = -0.05,
+                           maxval = 0.05,
+                           seed = 1)
+)
+```
+```{r}
+nn_model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(lr=0.01),
+  metrics = c('categorical_accuracy')
+)
+```
+```{r}
+# Fit model, validation split is used by keras for hold-out performance
+train_hist <- nn_model %>% fit(
+                train_x, train_y, 
+                epochs = 400, 
+                validation_split = 0.3
+              )
+# To visualise training path run:
+plot(train_hist)
+```
+```{r}
+
+```
+
+
+
+```{r}
+nn_model1 <- keras_model_sequential()
+nn_model1 %>%   layer_dense(units = 64, 
+              kernel_initializer = initializer_random_uniform(
+                seed = 1),
+              input_shape = ncol(X))  %>%
+  layer_activation_leaky_relu()   %>%
+  #layer_dropout(rate = 0.2) %>% 
+  
+  
+        layer_dense(units = 2, 
+                         activation = 'softmax',
+                         kernel_initializer = initializer_random_uniform(
+                           minval = -0.05,
+                           maxval = 0.05,
+                           seed = 1)
+)
+nn_model1 %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_sgd(lr=0.05),
+  metrics = c('categorical_accuracy'))
+
+```
+```{r}
+train_hist1 <- nn_model1 %>% fit(
+                train_x, train_y, 
+                epochs = 300, 
+                validation_split = 0.3
+              )
+# To visualise training path run:
+plot(train_hist1)
+```
+
+```{r}
+nn_model1%>% evaluate(test_x, test_y)
+predictions <- nn_model1 %>% predict_classes(test_x)
+#as.factor(predictions)
+#as.factor(test_validation_y)
+confusion <- confusionMatrix(data = as.factor(predictions), as.factor(test_validation_y))
+confusion
+# To view confusion table simply type
+#confusion
+```
+
+
+```{r}
+trainControl <- trainControl(method="repeatedcv",
+                             number=5,
+                             repeats=10,
+                             classProbs=TRUE,
+                             summaryFunction=twoClassSummary)
+
+tuningGrid <- expand.grid( maxdepth = c(1:10) )
+tree_estimate = train(RECONV ~ .,
+                      data = train_df,
+                      method = 'rpart2',
+                      trControl = trainControl,
+                      tuneGrid = tuningGrid
+                      )
+
+
+# To plot cross validation performance do:
+plot(tree_estimate)
+# To get best cv tuning parameters
+tree_estimate$bestTune
+# To plot final tree
+plot(tree_estimate$finalModel)
+prp(tree_estimate$finalModel)
+
+ControlObject <- rpart.control(minsplit=3, cp=0, maxdepth=5)
+tree_fit2 <- rpart(RECONV ~ .,
+                  data = train_df,
+                  method = "class",
+                  control = ControlObject)
+
+# Once the tree is built, you need to prune it back by looking at cross-validation performance
+# Note: In the below, size of tree is number of splits, not depth..
+plotcp(tree_fit2)
+
+#printcp(tree_fit2)
+# Rpart automatically chooses the best cross-validated performance for its final tree
+# you can plot this by
+prp(tree_fit2)
+
+```
+```{r}
+tree_pred1 <- predict(tree_estimate, newdata=test_df, type="raw")
+confusion1 <- confusionMatrix(data=tree_pred1, test_df$RECONV, positive = "Yes")
+confusion1
+tree_pred2 <- predict(tree_fit2, newdata=test_df, type="class")
+confusion2 <- confusionMatrix(data=tree_pred2, test_df$RECONV, positive = "Yes")
+confusion2
+```
+```{r}
+printcp(tree_fit2)
+
+chosen_cp = 0.009
+pruned_tree <- prune(tree_fit2, cp = chosen_cp)
+
+prp(pruned_tree)
+tree_pred3 <- predict(pruned_tree, newdata=test_df, type="class")
+confusion3 <- confusionMatrix(data=tree_pred3, test_df$RECONV, positive = "Yes")
+confusion3
+```
+
+
+```{r}
+train_control = trainControl(method="cv",
+                             number=5,
+                             summaryFunction = twoClassSummary,
+                             classProbs = TRUE,
+                             savePredictions = TRUE)
+
+# Estimate Model
+logistic_glm = train(RECONV ~ .,
+                  data = train_df,
+                    method="glm",
+                    family=binomial(link = "logit"),
+                    trControl=train_control)
+
+predictions = predict(logistic_glm, newdata=test_df, type="prob")
+cutpoint <- 0.5
+prediction <- ifelse(predictions[2] > cutpoint,"Yes","No")
+#prediction[1]
+#test_df$RECONV
+#as.factor(predictions)
+confusionMatrix(data=as.factor(prediction), test_df$RECONV, positive="Yes")
+```
+
+
+
+
+
+
+
+```{r}
+
+trainControl <- trainControl(method="repeatedcv",
+                             number=5,
+                             repeats=10,
+                             classProbs=TRUE,
+                             summaryFunction=twoClassSummary)
+
+# Recall mtry is the number of covariates you want to (randomly) include at each branch of
+# of the decision tree.
+tuningGrid <- expand.grid( mtry=c(1,2,3) )
+rf_estimate = train(RECONV ~.,
+                    data = train_df,
+                    method = 'rf',
+                    trControl = trainControl,
+                    tuneGrid = tuningGrid)
+
+# To view the variable importance of the random forest run
+
+rf_pred <- predict(rf_estimate, newdata=test_df)
+confusion_2 <- confusionMatrix(data=rf_pred,
+                             test_df$RECONV, positive = "Yes")
+```
+```{r}
+importance(rf_estimate$finalModel)
+confusion_2
+varImpPlot(rf_estimate$finalModel)
+```
+```{r}
+test_set<- read.csv('reconv_predict_no_label.csv')
+tree_pred4 <- predict(pruned_tree, newdata=test_set, type="class")
+final_prediction <- cbind(select(test_set,OINUM),tree_pred4)
+final_prediction
+write.csv(final_prediction,"35390350_predictions.csv")
+
+```
+
