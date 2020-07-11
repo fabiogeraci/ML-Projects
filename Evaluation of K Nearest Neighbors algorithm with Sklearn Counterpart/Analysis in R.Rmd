@@ -1,0 +1,315 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(ggplot2)
+```
+
+
+```{r}
+data <- read.csv('KNN_Export.csv', header = T)
+data
+```
+
+
+```{r}
+data_scratch <- data[which(data$Identifier == 'KNN FROM SCRATCH'), ]
+data_sklearn <- data[which(data$Identifier == 'KNN SKLEARN'), ]
+
+data_scratch
+```
+
+
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = Precision, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = Precision, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(0.8, 1)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "Precision vs Hyper-Parameter k")
+```
+
+
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = F1.Score, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = F1.Score, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(0.6, 1)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "F1.Score vs Hyper-Parameter k")
+```
+
+
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = Accuracy, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = Accuracy, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(80, 100)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "Accuracy vs Hyper-Parameter k")
+```
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = Recall, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = Recall, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(0.6,1)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "Recall vs Hyper-Parameter k")
+```
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = Sensitivity, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = Sensitivity, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(0.6,1)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "Sensitivity vs Hyper-Parameter k")
+```
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = Specificity, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = Specificity, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(0,0.1)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "Specificity vs Hyper-Parameter k")
+```
+
+
+```{r}
+ggplot(data_scratch) +
+  geom_histogram(aes(x = Precision), colour="black", fill="white") +
+  geom_density(aes(x = Precision), alpha=.2, fill="#FF6666") 
+
+ggplot(data_sklearn) +
+  geom_histogram(aes(x = Precision), colour="black", fill="white") +
+  geom_density(aes(x = Precision), alpha=.2, fill="#FF6666")
+```
+
+```{r}
+ggplot(NULL) +
+  geom_line(data = data_scratch, aes(x = Number.of.Neighbors
+, y = Processing.Time, color = "A"), show.legend = TRUE) +
+  geom_line(data = data_sklearn, aes(x = Number.of.Neighbors
+, y = Processing.Time, color = "B"), show.legend = TRUE) +
+  scale_y_continuous(limits = c(.001, 2)) +
+  scale_color_manual(values = c("A" = "red", "B" = "blue"), 
+                       labels = c("KNN from scratch", "KNN sklearn"),
+                       name = "Algorithms") +
+  labs(x = "Hyper-Parameter k", title = "Processing Time vs Hyper-Parameter k")
+```
+Variance Test for Accuracy Metric
+```{r}
+var.test(data_scratch$Accuracy, data_sklearn$Accuracy, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+Determining nu which would be useful to determine the critical region for our hypothesis
+
+```{r}
+a <- var(data_scratch$Accuracy)
+b <- var(data_sklearn$Accuracy)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+H0:KNN from scratch has lower mean accuracy compared to sklearn counterpart
+H1:KNN from scratch has greater mean accuracy compared to sklearn counterpart
+```{r}
+t.test(data_scratch$Accuracy, data_sklearn$Accuracy, alternative = "greater", paired = T)
+```
+
+```{r}
+#c(qt(0.025, nu),qt(0.975, nu))
+c(qt(0.05, nu),qt(0.95, nu))
+```
+Variance Test for Precision Metric
+
+```{r}
+var.test(data_scratch$Precision, data_sklearn$Precision, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+```{r}
+a <- var(data_scratch$Precision)
+b <- var(data_sklearn$Precision)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+
+H0:KNN from scratch has lower mean precision compared to sklearn counterpart
+H1:KNN from scratch has greater mean precision compared to sklearn counterpart
+```{r}
+t.test(data_scratch$Precision, data_sklearn$Precision, alternative = "greater", paired = T)
+```
+```{r}
+c(qt(0.05, nu),qt(0.95, nu))
+```
+
+
+Variance Test for Recall Metric
+
+```{r}
+var.test(data_scratch$Recall, data_sklearn$Recall, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+```{r}
+a <- var(data_scratch$Recall)
+b <- var(data_sklearn$Recall)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+
+H0:KNN from scratch has lower mean recall compared to sklearn counterpart
+H1:KNN from scratch has greater mean recall compared to sklearn counterpart
+```{r}
+t.test(data_scratch$Recall, data_sklearn$Recall, alternative = "greater", paired = T)
+```
+```{r}
+c(qt(0.05, nu),qt(0.95, nu))
+```
+
+
+Variance Test for F1 Score Metric
+
+```{r}
+var.test(data_scratch$F1.Score, data_sklearn$F1.Score, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+```{r}
+a <- var(data_scratch$F1.Score)
+b <- var(data_sklearn$F1.Score)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+
+H0:KNN from scratch has lower mean f1 score compared to sklearn counterpart
+H1:KNN from scratch has greater mean f1 score compared to sklearn counterpart
+```{r}
+t.test(data_scratch$F1.Score, data_sklearn$F1.Score, alternative = "greater", paired = T)
+```
+```{r}
+c(qt(0.05, nu),qt(0.95, nu))
+
+```
+
+Variance Test for Sensitivity Metric
+
+```{r}
+var.test(data_scratch$Sensitivity, data_sklearn$Sensitivity, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+```{r}
+a <- var(data_scratch$Sensitivity)
+b <- var(data_sklearn$Sensitivity)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+
+H0:KNN from scratch has lower mean f1 score compared to sklearn counterpart
+H1:KNN from scratch has greater mean f1 score compared to sklearn counterpart
+```{r}
+t.test(data_scratch$Sensitivity, data_sklearn$Sensitivity, alternative = "greater", paired = T)
+```
+```{r}
+c(qt(0.05, nu),qt(0.95, nu))
+
+```
+
+
+Variance Test for Specificity Metric
+
+```{r}
+var.test(data_scratch$Specificity, data_sklearn$Specificity, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+```{r}
+a <- var(data_scratch$Specificity)
+b <- var(data_sklearn$Specificity)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+
+H0:KNN from scratch has greater mean specificity compared to sklearn counterpart
+H1:KNN from scratch has lower mean specificity compared to sklearn counterpart
+```{r}
+t.test(data_scratch$F1.Score, data_sklearn$F1.Score, alternative = "greater", paired = T)
+```
+```{r}
+c(qt(0.05, nu),qt(0.95, nu))
+
+```
+
+
+Variance Test for Processing Time Metric
+
+```{r}
+var.test(data_scratch$Processing.Time, data_sklearn$Processing.Time, alternative = "two.sided")
+```
+
+```{r}
+c(qf(0.025, 49, 49), qf(0.975, 49, 49))
+```
+```{r}
+a <- var(data_scratch$Processing.Time)
+b <- var(data_sklearn$Processing.Time)
+
+nu <- (((a/50) + (b/50)) ^ 2) / (((a/50)^2)/49) + (((b/50)^2)/49)
+```
+
+H0:KNN from scratch has lower mean f1 score compared to sklearn counterpart
+H1:KNN from scratch has greater mean f1 score compared to sklearn counterpart
+```{r}
+t.test(data_scratch$Processing.Time, data_sklearn$Processing.Time, alternative = "greater", paired = T)
+```
+```{r}
+c(qt(0.05, nu),qt(0.95, nu))
+
+```
+```{r}
+
+```
+
+
+
